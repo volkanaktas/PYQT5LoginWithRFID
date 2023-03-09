@@ -1,16 +1,25 @@
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-import sys, cv2
+import sys
 import sqlite3 as sql3
 from shutil import copyfile
 import numpy as np
-import face_recognition as fr
 
-video_capture = cv2.VideoCapture(0)
+#import _thread
+import threading
+from time import sleep
+import time
+from mfrc522 import SimpleMFRC522
+reader = SimpleMFRC522()
+#import cv2
+#import face_recognition as fr
+
+#video_capture = cv2.VideoCapture(0)
 
 face_paths = []
 face_names = []
+
 
 with sql3.connect('databases/users.db') as db:
     cursor = db.cursor()
@@ -23,7 +32,8 @@ class Main(QMainWindow):
         super().__init__()
         self.loginRole = str()
         self.setUI()
-        self.setWindowTitle('Login With Face Recognition')
+        #self.setWindowTitle('Login With Face Recognition')
+        self.setWindowTitle('Login With Rfid Recognition')
         self.setWindowIcon(QIcon("images/face_scan.png"))
         #Main StyleSheet
         self.setStyleSheet('''
@@ -71,11 +81,18 @@ class Main(QMainWindow):
 
         #Layouts
         self.v_box_login = QVBoxLayout()
+        #self.v_box_login = QFormLayout()
 
         #Widgets
-        self.lb_title = QLabel('Login With Face Recognition')
+        self.lb_title = QLabel('Login With Rfid Recognition')
+        #self.lb_title = QLabel('Login With Face Recognition')
         self.le_username = QLineEdit('admin')
         self.le_password = QLineEdit('admin')
+        self.gb_LoginMode=QGroupBox("Login Mode")
+        self.hb_LoginBox=QHBoxLayout()
+        self.rb_rfidManualLogin = QRadioButton('Manual')
+        self.rb_rfidManualLogin.setChecked(True)
+        self.rb_rfidAutoLogin = QRadioButton('Rfid')
         self.pb_login = QPushButton('Log in')
         
         #add image in label
@@ -90,21 +107,34 @@ class Main(QMainWindow):
         #Expanding Settings
         self.le_username.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.le_password.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.rb_rfidManualLogin.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.rb_rfidAutoLogin.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         
         self.face_scan_img.setScaledContents(True)
 
         #Alignment Settings
         self.lb_title.setAlignment(Qt.AlignHCenter)
-        self.face_scan_img.setAlignment(Qt.AlignHCenter)
+        self.face_scan_img.setAlignment(Qt.AlignHCenter)        
 
-        #PushButton connect
-        self.pb_login.clicked.connect(self.confirmLogin)
+        #Events connect
+        self.pb_login.clicked.connect(self.confirmLogin)        
+        self.rb_rfidManualLogin.toggled.connect(lambda:self.rbLoginModeState(self.rb_rfidManualLogin))
+        self.rb_rfidAutoLogin.toggled.connect(lambda:self.rbLoginModeState(self.rb_rfidAutoLogin))
+        #self.rb_rfidAutoLogin.toggled.connect(lambda:_thread.start_new_thread(self.readRfidAuto,(1,)) )
         
         #Layouts settings
         self.v_box_login.addWidget(self.lb_title)
         self.v_box_login.addWidget(self.face_scan_img)
         self.v_box_login.addWidget(self.le_username)
         self.v_box_login.addWidget(self.le_password)
+        self.gb_LoginMode.setLayout(self.hb_LoginBox)        
+        self.hb_LoginBox.addWidget(self.rb_rfidManualLogin)
+        self.hb_LoginBox.addWidget(self.rb_rfidAutoLogin)
+        self.hb_LoginBox.addStretch()
+        self.v_box_login.addWidget(self.gb_LoginMode)
+        #self.v_box_login.addWidget(self.rb_rfidManualLogin)
+        #self.v_box_login.addWidget(self.rb_rfidAutoLogin)
+        #self.v_box_login.addRow(self.rb_rfidManualLogin, self.rb_rfidAutoLogin)
         self.v_box_login.addWidget(self.pb_login)
 
         #Widget Set Layout
@@ -341,6 +371,71 @@ class Main(QMainWindow):
         #return Widget
         return widget
     
+    exitflag = False
+    def readRfidAutoThread(self,stop):            
+        reader = SimpleMFRC522()
+        try:                
+                while True:                         
+                        print("Hold a tag near the reader")
+                        id, text = reader.read()
+                        print("ID: %s\nText: %s" % (id,text))
+                        sleep(5)
+                        print("exitflag",self.exitflag)
+                        if self.exitflag:                                 
+                                break
+        except KeyboardInterrupt:
+                GPIO.cleanup()
+                raise
+    
+    
+    def rbLoginModeState(self,rb):                   
+        t1 = threading.Thread(target = self.readRfidAutoThread, args =(lambda : exitflag1, )) 
+        #if rb.text() == "Manual":
+        if self.rb_rfidManualLogin.isChecked():
+                self.le_username.setEnabled(True)
+                self.le_password.setEnabled(True)                
+                #print("Manual")                
+                
+                self.exitflag =True
+                print("exitflag",self.exitflag)
+               
+        #elif self.rb_rfidAutoLogin.isChecked():
+        else:
+                self.le_username.setEnabled(False)
+                self.le_password.setEnabled(False)   
+                #print("Auto")
+                #thread.start_new_thread(self.readRfidAuto,(1,))                   
+                t1.start() 
+                time.sleep(1)                
+                self.exitflag =False
+               
+                
+    def readRfidManual(self):
+        reader = SimpleMFRC522()
+        try:
+                while True:
+                        print("Hold a tag near the reader")
+                        id, text = reader.read()
+                        print("ID: %s\nText: %s" % (id,text))
+                        sleep(5)
+        except KeyboardInterrupt:
+                GPIO.cleanup()
+                raise
+                
+    def readRfidAuto(self,sleeptime):
+        reader = SimpleMFRC522()
+        try:
+                while True:
+                        print("Hold a tag near the reader")
+                        id, text = reader.read()
+                        print("ID: %s\nText: %s" % (id,text))
+                        #sleep(5)
+                        time.sleep(sleeptime)
+        except KeyboardInterrupt:
+                GPIO.cleanup()
+                raise
+                
+    
     def confirmLogin(self):
         search_user = ('SELECT * FROM users WHERE username = ? AND password = ?')
         cursor.execute(search_user,[(self.le_username.text()),(self.le_password.text())])
@@ -359,7 +454,7 @@ class Main(QMainWindow):
                     result = cursor_face.fetchall()
                     if len(result) > 0:
                         self.face_recognition_system.disconnect()
-                    video_capture.release()
+                    #video_capture.release()
                 
                 elif i[0] == 1:
                     self.loginRole = 'guest'
