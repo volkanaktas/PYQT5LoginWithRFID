@@ -1,7 +1,9 @@
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-import sys
+from PyQt5.QtWidgets import QApplication
+from pyqt_slideshow import SlideShow
+import os,sys
 import sqlite3 as sql3
 from shutil import copyfile
 import numpy as np
@@ -154,6 +156,7 @@ class Main(QMainWindow):
         
         #Widgets
         self.pb_admin_panel = QPushButton('Admin Panel')
+        self.pb_transactions = QPushButton('Transactions')
         self.lb_title_face_recognition_home_page = QLabel('Login With Face Recognition')
         
         #add image in label
@@ -198,14 +201,23 @@ class Main(QMainWindow):
         self.h_box_home_page.addSpacing(20)
         self.h_box_home_page.addLayout(self.v_box_home_page2)
         
+        s = SlideShow()
+        slidepath=os.getcwd()+"/slides/"
+        s.setFilenames([slidepath+"r1.jpg", slidepath+"r2.jpg", slidepath+"r3.jpg",slidepath+"r4.jpg"])
+        s.setNavigationButtonVisible(False) # to not show the navigation button
+        s.setBottomButtonVisible(False) # to not show the bottom button
+        s.show()
+        
 
         #v_box_home_page
         self.v_box_home_page.addWidget(self.profil_img)
         if self.loginRole == 'admin':
             self.v_box_home_page.addWidget(self.pb_admin_panel)
+            self.v_box_home_page.addWidget(self.pb_transactions)
         
         #v_box_home_page2
-        self.v_box_home_page2.addWidget(self.lb_title_face_recognition_home_page)
+        #self.v_box_home_page2.addWidget(self.lb_title_face_recognition_home_page)
+        self.v_box_home_page2.addWidget(s)
 
         #Widget Set Layout
         widget.setLayout(self.h_box_home_page)
@@ -388,8 +400,8 @@ class Main(QMainWindow):
                 raise
     
     
-    def rbLoginModeState(self,rb):                   
-        t1 = threading.Thread(target = self.readRfidAutoThread, args =(lambda : exitflag1, )) 
+    def rbLoginModeStateYedek(self,rb):                   
+        t1 = threading.Thread(target = self.readRfidAutoThread, args =(lambda : exitflag, )) 
         #if rb.text() == "Manual":
         if self.rb_rfidManualLogin.isChecked():
                 self.le_username.setEnabled(True)
@@ -407,10 +419,46 @@ class Main(QMainWindow):
                 #thread.start_new_thread(self.readRfidAuto,(1,))                   
                 t1.start() 
                 time.sleep(1)                
-                self.exitflag =False
-               
-                
+                self.exitflag =False                
+
+    def rbLoginModeState(self,rb):                           
+        #if rb.text() == "Manual":
+        if self.rb_rfidManualLogin.isChecked():
+                self.le_username.setEnabled(True)
+                self.le_password.setEnabled(True)                
+                #print("Manual")                                           
+        #elif self.rb_rfidAutoLogin.isChecked():
+        else:
+                self.le_username.setEnabled(False)
+                self.le_password.setEnabled(False)                                   
+                self.readRfidManual() 
+
+    rfidValue=""                
+    tekrar=0
     def readRfidManual(self):
+        reader = SimpleMFRC522()
+        try:
+             print("Hold a tag near the reader")
+             if(self.rfidValue==""):
+                id, text = reader.read()                
+                print("ID: %s\nText: %s" % (id,text))              
+                self.rfidValue=id             
+             else:
+                self.rfidValue=""
+                   
+                #if(self.rfidValue == ""):
+                #if(self.tekrar == 0):                
+                        #self.tekrar += 1
+                #if(self.tekrar == 1):                        
+                        #print("ID: %s\nText: %s" % (id,text))  
+                        #self.rfidValue=id
+                        #self.tekrar=0 
+             sleep(1)
+        except KeyboardInterrupt:
+                GPIO.cleanup()
+                raise
+                
+    def readRfidManualYedek(self):
         reader = SimpleMFRC522()
         try:
                 while True:
@@ -467,7 +515,7 @@ class Main(QMainWindow):
                     result = cursor_face.fetchall()
                     if len(result) > 0:
                         self.face_recognition_system.disconnect()
-                    video_capture.release()
+                    #video_capture.release()
 
                 else:
                     self.qDialog('Check Password Or Username')
