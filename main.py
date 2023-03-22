@@ -1,13 +1,14 @@
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QTableWidget,QTableWidgetItem
 from pyqt_slideshow import SlideShow
 import os,sys
 import sqlite3 as sql3
 from shutil import copyfile
 import numpy as np
 
+from datetime import datetime
 #import _thread
 import threading
 from time import sleep
@@ -25,6 +26,9 @@ face_names = []
 
 with sql3.connect('databases/users.db') as db:
     cursor = db.cursor()
+    
+with sql3.connect('databases/members.db') as db_members:
+    cursor_members = db_members.cursor()
 
 with sql3.connect('databases/face_recognition.db') as db_face:
     cursor_face = db_face.cursor()
@@ -68,6 +72,7 @@ class Main(QMainWindow):
 
     def setUI(self):
         search_user = ('SELECT * FROM faces')
+        #search_members = ('SELECT * FROM members')
         cursor_face.execute(search_user)
         result = cursor_face.fetchall()
         if len(result) > 0:
@@ -87,7 +92,7 @@ class Main(QMainWindow):
 
         #Widgets
         self.lb_title = QLabel('Login With Rfid Recognition')
-        #self.lb_title = QLabel('Login With Face Recognition')
+        #self.lb_title = QLabel('Login With Face Recognition')        
         self.le_username = QLineEdit('admin')
         self.le_password = QLineEdit('admin')
         self.gb_LoginMode=QGroupBox("Login Mode")
@@ -157,7 +162,7 @@ class Main(QMainWindow):
         #Widgets
         self.pb_admin_panel = QPushButton('Admin Panel')
         self.pb_transactions = QPushButton('Transactions')
-        self.lb_title_face_recognition_home_page = QLabel('Login With Face Recognition')
+        self.lb_title_face_recognition_home_page = QLabel('Login With Rfid Recognition')
         
         #add image in label
         self.profil_img = QLabel(self)
@@ -193,6 +198,7 @@ class Main(QMainWindow):
 
         #PushButton connect
         self.pb_admin_panel.clicked.connect(self.loginAdminPanel)
+        self.pb_transactions.clicked.connect(self.loginTransactionsPage)
 
         #Layouts Settings
 
@@ -201,12 +207,12 @@ class Main(QMainWindow):
         self.h_box_home_page.addSpacing(20)
         self.h_box_home_page.addLayout(self.v_box_home_page2)
         
-        s = SlideShow()
+        self.s = SlideShow()
         slidepath=os.getcwd()+"/slides/"
-        s.setFilenames([slidepath+"r1.jpg", slidepath+"r2.jpg", slidepath+"r3.jpg",slidepath+"r4.jpg"])
-        s.setNavigationButtonVisible(False) # to not show the navigation button
-        s.setBottomButtonVisible(False) # to not show the bottom button
-        s.show()
+        self.s.setFilenames([slidepath+"r1.jpg", slidepath+"r2.jpg", slidepath+"r3.jpg",slidepath+"r4.jpg"])
+        self.s.setNavigationButtonVisible(False) # to not show the navigation button
+        self.s.setBottomButtonVisible(False) # to not show the bottom button
+        self.s.show()
         
 
         #v_box_home_page
@@ -217,7 +223,7 @@ class Main(QMainWindow):
         
         #v_box_home_page2
         #self.v_box_home_page2.addWidget(self.lb_title_face_recognition_home_page)
-        self.v_box_home_page2.addWidget(s)
+        self.v_box_home_page2.addWidget(self.s)
 
         #Widget Set Layout
         widget.setLayout(self.h_box_home_page)
@@ -241,7 +247,9 @@ class Main(QMainWindow):
         self.form_admin_options = QFormLayout()
         self.form_guest_options = QFormLayout()
         self.form_face_recognition_options = QFormLayout()
-        self.form_exit_admin_panel = QFormLayout()
+        self.form_exit_admin_panel = QFormLayout()       
+        self.grid_member_operations=QGridLayout()
+
 
         #Widgets
         self.le_admin_username = QLineEdit()
@@ -251,30 +259,41 @@ class Main(QMainWindow):
         self.le_guest_password = QLineEdit()
         self.le_guest_password_confirm = QLineEdit()
         self.le_face_name = QLineEdit()
-        self.lb_admin_information_title = QLabel('Admin Information Update')
+        self.lb_admin_information_title = QLabel('Admin/Guest Information Update')
         self.lb_guest_information_title = QLabel('Guest Information Update')
-        self.lb_face_recognition_title = QLabel('Add New Face Recognition')
-        self.lb_admin_username = QLabel('Admin Username:')
-        self.lb_admin_password = QLabel('Admin Password:')
+        self.lb_face_recognition_title = QLabel('Add New Rfid Recognition')
+        self.lb_admin_username = QLabel('Username:')
+        self.lb_admin_password = QLabel('Password:')
         self.lb_admin_password_confirm = QLabel('Password Confirm:')
-        self.lb_guest_username = QLabel('Guest Username:')
-        self.lb_guest_password = QLabel('Guest Password:')
-        self.lb_guest_password_confirm = QLabel('Password Confirm:')
-        self.lb_face_name = QLabel('Username:')
-        self.lb_face_image = QLabel('User Face Image:')
         self.lb_face_recognition_role = QLabel('Choose a role:')
         self.rb_role_admin = QRadioButton('Admin')
         self.rb_role_guest = QRadioButton('Guest')
-        self.pb_admin_update = QPushButton('Admin Update')
+        
+        self.lb_guest_username = QLabel('Guest Username:')
+        self.lb_guest_password = QLabel('Guest Password:')
+        self.lb_guest_password_confirm = QLabel('Password Confirm:')
+        self.lb_face_name = QLabel('Member name:')
+        self.lb_member_telephone = QLabel('Member telephone:')
+        self.lb_member_mail = QLabel('Member mail:')
+        self.le_member_telephone = QLineEdit()
+        self.le_member_mail = QLineEdit()
+        self.lb_face_image = QLabel('Member Face Image:')
+        self.lb_member_rfid = QLabel('RFID Value:')
+        self.le_member_rfid = QLineEdit()
+        
+        self.pb_admin_update = QPushButton('Admin/Guest Update')
+        self.pb_member_Add = QPushButton('Add Member')
+        self.pb_member_Update = QPushButton('Update Member')
+        self.pb_member_Delete = QPushButton('Delete Member')
         self.pb_guest_update = QPushButton('Guest Update')
         self.pb_face_image = QPushButton('Choose Face')
-        self.pb_face_add = QPushButton('Add New User')
-        self.pb_exit_admin_panel = QPushButton('EXIT')
+        self.pb_read_rfid = QPushButton('Read RFID')
+        self.pb_exit_admin_panel = QPushButton('EXIT')        
 
         #add image in label
         self.face_recognition_img = QLabel(self)
         self.face_recognition_pixmap = QPixmap('images/profile.png')
-        self.face_recognition_img.setPixmap(self.face_recognition_pixmap.scaled(QSize(350,350)))
+        self.face_recognition_img.setPixmap(self.face_recognition_pixmap.scaled(QSize(200,200)))
 
         #StyleSheet
         self.lb_admin_information_title.setStyleSheet('font-size:20px;')
@@ -292,7 +311,8 @@ class Main(QMainWindow):
         self.pb_admin_update.clicked.connect(self.adminOptionsUpdate)
         self.pb_guest_update.clicked.connect(self.guestOptionsUpdate)
         self.pb_face_image.clicked.connect(self.selectFacePath)
-        self.pb_face_add.clicked.connect(self.addNewUserToFaceRecognition)
+        #self.pb_read_rfid.clicked.connect(self.addNewUserToFaceRecognition)    
+        self.pb_read_rfid.clicked.connect(lambda:self.readRfidManual(self.le_member_rfid))        
 
         #Expanding Settings
 
@@ -325,46 +345,61 @@ class Main(QMainWindow):
 
         #h_box_admin_panel
         self.h_box_admin_panel.addLayout(self.v_box_admin_panel)
-        self.h_box_admin_panel.addSpacing(50)
+        self.h_box_admin_panel.addSpacing(5)
         self.h_box_admin_panel.addStretch()
-        self.h_box_admin_panel.addLayout(self.v_box_admin_panel2)
+        self.h_box_admin_panel.addLayout(self.form_guest_options)
 
         #h_box_rb_role_select
         self.h_box_rb_role_select.addWidget(self.lb_face_recognition_role)
         self.h_box_rb_role_select.addWidget(self.rb_role_admin)
         self.h_box_rb_role_select.addWidget(self.rb_role_guest)
+        self.rb_role_admin.setChecked(True)
 
         #form_admin_options
-        self.form_admin_options.setSpacing(12)
+        self.form_admin_options.setSpacing(5)
         self.form_admin_options.addRow(self.lb_admin_username, self.le_admin_username)
         self.form_admin_options.addRow(self.lb_admin_password, self.le_admin_password)
-        self.form_admin_options.addRow(self.lb_admin_password_confirm, self.le_admin_password_confirm)
+        self.form_admin_options.addRow(self.lb_admin_password_confirm, self.le_admin_password_confirm)        
+        self.form_admin_options.addRow(self.h_box_rb_role_select)       
+        
         self.form_admin_options.addRow(self.pb_admin_update)
 
         #form_guest_options
-        self.form_guest_options.setSpacing(12)
+        self.form_guest_options.setSpacing(5)
+        self.form_guest_options.addWidget(self.lb_guest_information_title)
         self.form_guest_options.addRow(self.lb_guest_username, self.le_guest_username)
         self.form_guest_options.addRow(self.lb_guest_password, self.le_guest_password)
         self.form_guest_options.addRow(self.lb_guest_password_confirm, self.le_guest_password_confirm)
         self.form_guest_options.addRow(self.pb_guest_update)
 
         #form_face_recognition_options
-        self.form_face_recognition_options.setSpacing(12)
+        self.form_face_recognition_options.setSpacing(5)
         self.form_face_recognition_options.addRow(self.lb_face_name, self.le_face_name)
+        self.form_face_recognition_options.addRow(self.lb_member_telephone, self.le_member_telephone)
+        self.form_face_recognition_options.addRow(self.lb_member_mail, self.le_member_mail)
         self.form_face_recognition_options.addRow(self.lb_face_image, self.pb_face_image)
 
         #form_exit_admin_panel
         self.form_exit_admin_panel.addRow(self.pb_exit_admin_panel)
+        
+        #grid_member_operations  
+        self.grid_member_operations.setSpacing(5)         
+        self.grid_member_operations.addWidget(self.lb_member_rfid, 0,0)
+        self.grid_member_operations.addWidget(self.le_member_rfid, 0,1)
+        self.grid_member_operations.addWidget(self.pb_read_rfid, 0,2)
+        self.grid_member_operations.addWidget(self.pb_member_Add, 1,0)      
+        self.grid_member_operations.addWidget(self.pb_member_Update, 1,1)                                                                         
+        self.grid_member_operations.addWidget(self.pb_member_Delete, 1,2)                           
 
         #v_box_admin_panel
         self.v_box_admin_panel.addWidget(self.lb_admin_information_title)
-        self.v_box_admin_panel.addSpacing(10)
+        self.v_box_admin_panel.addSpacing(5)
         self.v_box_admin_panel.addLayout(self.form_admin_options)
 
-        self.v_box_admin_panel.addSpacing(25)
-        self.v_box_admin_panel.addWidget(self.lb_guest_information_title)
-        self.v_box_admin_panel.addSpacing(10)
-        self.v_box_admin_panel.addLayout(self.form_guest_options)
+        self.v_box_admin_panel.addSpacing(10)        
+       
+        self.v_box_admin_panel.addLayout(self.v_box_admin_panel2)       
+        
 
         self.v_box_admin_panel.addStretch()
         self.v_box_admin_panel.addLayout(self.form_exit_admin_panel)
@@ -372,9 +407,8 @@ class Main(QMainWindow):
         #v_box_admin_panel2
         self.v_box_admin_panel2.addWidget(self.lb_face_recognition_title)
         self.v_box_admin_panel2.addSpacing(10)
-        self.v_box_admin_panel2.addLayout(self.form_face_recognition_options)
-        self.v_box_admin_panel2.addLayout(self.h_box_rb_role_select)
-        self.v_box_admin_panel2.addWidget(self.pb_face_add)
+        self.v_box_admin_panel2.addLayout(self.form_face_recognition_options)               
+        self.v_box_admin_panel2.addLayout(self.grid_member_operations)        
         self.v_box_admin_panel2.addWidget(self.face_recognition_img)  
 
         #Widget Set Layout
@@ -384,20 +418,112 @@ class Main(QMainWindow):
         return widget
     
     exitflag = False
-    def readRfidAutoThread(self,stop):            
-        reader = SimpleMFRC522()
-        try:                
-                while True:                         
-                        print("Hold a tag near the reader")
-                        id, text = reader.read()
-                        print("ID: %s\nText: %s" % (id,text))
-                        sleep(5)
-                        print("exitflag",self.exitflag)
-                        if self.exitflag:                                 
-                                break
-        except KeyboardInterrupt:
-                GPIO.cleanup()
-                raise
+    
+    def transactionsPage(self):
+        #Widget
+        widget = QWidget()        
+        
+        #self.s.setTimerEnabled(False)
+
+        #Layouts
+        self.h_box_t_page = QHBoxLayout()
+        self.v_box_t_page = QVBoxLayout()
+        self.v_box_t_page2 = QVBoxLayout()
+        self.hb_LoginBox=QHBoxLayout()
+        
+        
+        #Widgets
+        self.pb_admin_panel = QPushButton('Admin Panel')
+        self.pb_transactions = QPushButton('Transactions')
+        self.lb_title_face_recognition_home_page = QLabel('Rfid Recognition Transcactions')
+        
+        self.gb_LoginMode=QGroupBox("Login Mode")       
+        self.rb_rfidManualRead = QRadioButton('Manual')        
+        self.rb_rfidAutoRead = QRadioButton('Rfid')
+        self.rb_rfidAutoRead.setChecked(True)
+        
+        #add image in label
+        self.profil_img = QLabel(self)
+        self.profil_img_pixmap = QPixmap('images/profile.png')
+        self.profil_img.setPixmap(self.profil_img_pixmap.scaled(200,200))
+
+        #Expanding Settings
+        self.lb_title_face_recognition_home_page.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.rb_rfidManualRead.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Fixed)
+        self.rb_rfidAutoRead.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Fixed)
+
+        #Height and Width
+        self.lb_title_face_recognition_home_page.setMaximumHeight(30)
+
+        #Alignment Settings
+        self.v_box_t_page.setAlignment(Qt.AlignTop)
+        self.profil_img.setAlignment(Qt.AlignTop)
+        self.lb_title_face_recognition_home_page.setAlignment(Qt.AlignHCenter)
+
+        #StyleSheet
+        widget.setStyleSheet('''
+        QLabel{
+            border-color: #3282b8;
+            border-width: 2px;
+            border-style: inset;
+        }
+        ''')
+        self.lb_title_face_recognition_home_page.setStyleSheet('''
+        QLabel{
+            border-width: 0px;
+            padding: 0px;
+            font-size: 15px;
+        }
+        ''')
+
+        #PushButton connect
+        self.pb_admin_panel.clicked.connect(self.loginAdminPanel)
+        self.rb_rfidManualRead.toggled.connect(lambda:self.rbRfidModeState(self.rb_rfidManualRead))
+        self.rb_rfidAutoRead.toggled.connect(lambda:self.rbRfidModeState(self.rb_rfidAutoRead))
+      
+
+        #Layouts Settings
+
+        #h_box_home_page
+        self.h_box_t_page.addLayout(self.v_box_t_page)
+        self.h_box_t_page.addSpacing(20)
+        self.h_box_t_page.addLayout(self.v_box_t_page2)        
+        self.gb_LoginMode.setLayout(self.hb_LoginBox)        
+        self.hb_LoginBox.addWidget(self.rb_rfidManualRead)
+        self.hb_LoginBox.addWidget(self.rb_rfidAutoRead)
+        self.hb_LoginBox.addStretch()
+        
+
+        #v_box_home_page
+        self.v_box_t_page.addWidget(self.profil_img)
+        if self.loginRole == 'admin':
+            self.v_box_t_page.addWidget(self.pb_admin_panel)
+            self.v_box_t_page.addWidget(self.pb_transactions)
+        
+        #v_box_home_page2
+        #self.v_box_home_page2.addWidget(self.lb_title_face_recognition_home_page)
+        
+        self.v_box_t_page2.addWidget(self.gb_LoginMode)
+        
+        self.tableWidget = QTableWidget()
+        self.tableWidget.setRowCount(1)
+        self.tableWidget.setColumnCount(3)
+        #self.tableWidget.horizontalHeader().setVisible(True)
+        #self.tableWidget.verticalHeader().setVisible(True)     
+        self.tableWidget.setHorizontalHeaderLabels(['Processing Date','Name','Rfid Value'])
+        #table.setVerticalHeaderLabels(['Col 1','Col 2'])        
+
+        # table selection change
+        #self.tableWidget.doubleClicked.connect(self.on_click)
+        
+        self.v_box_t_page2.addWidget(self.tableWidget)
+
+        #Widget Set Layout
+        widget.setLayout(self.h_box_t_page)
+
+        #return Widget
+        return widget
+    exitflag = False
     
     
     def rbLoginModeStateYedek(self,rb):                   
@@ -423,6 +549,8 @@ class Main(QMainWindow):
 
     def rbLoginModeState(self,rb):                           
         #if rb.text() == "Manual":
+        self.le_username.setText("")
+        self.le_password.setText("") 
         if self.rb_rfidManualLogin.isChecked():
                 self.le_username.setEnabled(True)
                 self.le_password.setEnabled(True)                
@@ -431,18 +559,26 @@ class Main(QMainWindow):
         else:
                 self.le_username.setEnabled(False)
                 self.le_password.setEnabled(False)                                   
-                self.readRfidManual() 
+                self.searchRfid_and_Login()
+                
+    def rbRfidModeState(self,rb):                                   
+        if self.rb_rfidManualRead.isChecked():                 
+                self.manualSearchRfid_and_AddTable()                              
+        #else:
+                #self.autoSearchRfid_and_AddTable                                                                                              
 
-    rfidValue=""                
-    tekrar=0
-    def readRfidManual(self):
+    #rfidValue=""                
+    #tekrar=0
+    def readRfidManual(self,nameW:QLineEdit):        
+        self.rfidValue=""  
         reader = SimpleMFRC522()
         try:
              print("Hold a tag near the reader")
              if(self.rfidValue==""):
                 id, text = reader.read()                
                 print("ID: %s\nText: %s" % (id,text))              
-                self.rfidValue=id             
+                self.rfidValue=id
+                nameW.setText(str(self.rfidValue))                          
              else:
                 self.rfidValue=""
                    
@@ -453,6 +589,9 @@ class Main(QMainWindow):
                         #print("ID: %s\nText: %s" % (id,text))  
                         #self.rfidValue=id
                         #self.tekrar=0 
+             #return self.rfidValue
+             #if self.clickedButton() is self.button(pb_read_rfid):             
+             
              sleep(1)
         except KeyboardInterrupt:
                 GPIO.cleanup()
@@ -483,6 +622,108 @@ class Main(QMainWindow):
                 GPIO.cleanup()
                 raise
                 
+    def searchRfid_and_Login(self):                 
+        self.rfidValue=""  
+        reader = SimpleMFRC522()
+        try:
+             print("Hold a tag near the reader")
+             if(self.rfidValue==""):
+                id, text = reader.read()                
+                print("ID: %s\nText: %s" % (id,text))              
+                self.rfidValue=id             
+             else:
+                self.rfidValue=""                   
+             
+             sleep(1)
+        except KeyboardInterrupt:
+                GPIO.cleanup()
+                raise
+        
+        if(self.rfidValue != ""):
+                search_user = ('SELECT * FROM users WHERE rfidID = ?')
+                cursor.execute(search_user,[(self.rfidValue)])
+                result = cursor.fetchall()
+
+                if result:
+                        for i in result:
+                                self.le_username.setText(i[1])
+                                self.le_password.setText(i[2])        
+                else:
+                        self.qDialog('Check Password Or Username')
+                        
+    def manualSearchRfid_and_AddTable(self):                 
+        self.rfidValue=""  
+        reader = SimpleMFRC522()
+        try:
+             print("Hold a tag near the reader")
+             if(self.rfidValue==""):
+                id, text = reader.read()                
+                print("ID: %s\nText: %s" % (id,text))              
+                self.rfidValue=id             
+             else:
+                self.rfidValue=""                   
+             
+             sleep(1)
+        except KeyboardInterrupt:
+                GPIO.cleanup()
+                raise            
+        if(self.rfidValue != ""):                
+                search_members = ('SELECT * FROM member WHERE rfidID = ?')
+                cursor_members.execute(search_members,[str((self.rfidValue))])
+                result = cursor_members.fetchall()                
+                if result:                        
+                        for i in result:           
+                                name=i[2]
+                                rfid=str(i[1])                                                                                                                                                                   
+                        rowPosition= self.tableWidget.rowCount()                        
+                        
+                        self.tableWidget.setCurrentItem(None)
+                        matching_items = self.tableWidget.findItems(rfid, Qt.MatchContains)
+                        if matching_items:                        
+                                item = matching_items[0]  # Take the first.
+                                self.tableWidget.setCurrentItem(item)
+                                
+                                
+                        else:                        
+                                self.tableWidget.insertRow(rowPosition)                                                                              
+                                self.tableWidget.setItem(rowPosition-1,0, QTableWidgetItem(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+                                self.tableWidget.setItem(rowPosition-1,1, QTableWidgetItem(name))
+                                self.tableWidget.setItem(rowPosition-1,2, QTableWidgetItem(rfid))                                                                
+                                self.tableWidget.resizeColumnsToContents()                                     
+                                #self.tableWidget.move(0,0)
+                else:
+                        self.qDialog('Check Password Or Username')
+                        
+    def autoSearchRfid_and_AddTable(self):                 
+        self.rfidValue=""  
+        self.tableValue=""
+        reader = SimpleMFRC522()
+        try:
+             print("Hold a tag near the reader")
+             if(self.rfidValue==""):
+                id, text = reader.read()                
+                print("ID: %s\nText: %s" % (id,text))              
+                self.rfidValue=id             
+             else:
+                self.rfidValue=""                   
+             
+             sleep(1)
+        except KeyboardInterrupt:
+                GPIO.cleanup()
+                raise
+        
+        if(self.rfidValue != ""):
+                search_user = ('SELECT * FROM users WHERE rfidID = ?')
+                cursor.execute(search_user,[(self.rfidValue)])
+                result = cursor.fetchall()
+
+                if result:
+                        for i in result:
+                                self.le_username.setText(i[1])
+                                self.le_password.setText(i[2])        
+                else:
+                        self.qDialog('Check Password Or Username')
+                
     
     def confirmLogin(self):
         search_user = ('SELECT * FROM users WHERE username = ? AND password = ?')
@@ -496,7 +737,7 @@ class Main(QMainWindow):
                     home_page = self.homePage()
                     self.setCentralWidget(home_page)
                     self.setGeometry(100,100,1400,800)
-                    self.setWindowTitle('Face Recognition (Admin)')
+                    self.setWindowTitle('Rfid Recognition (Admin)')
                     search_user = ('SELECT * FROM faces')
                     cursor_face.execute(search_user)
                     result = cursor_face.fetchall()
@@ -509,7 +750,7 @@ class Main(QMainWindow):
                     home_page = self.homePage()
                     self.setCentralWidget(home_page)
                     self.setGeometry(100,100,1400,800)
-                    self.setWindowTitle('Face Recognition (Guest)')
+                    self.setWindowTitle('Rfid Recognition (Guest)')
                     search_user = ('SELECT * FROM faces')
                     cursor_face.execute(search_user)
                     result = cursor_face.fetchall()
@@ -521,6 +762,10 @@ class Main(QMainWindow):
                     self.qDialog('Check Password Or Username')
         else:
             self.qDialog('Check Password Or Username')
+            
+    def loginTransactionsPage(self):
+        transactions_page = self.transactionsPage()
+        self.setCentralWidget(transactions_page)
     
     def loginHomePage(self):
         home_page = self.homePage()
@@ -594,7 +839,7 @@ class Main(QMainWindow):
             
             else:
                 self.face_recognition_pixmap = QPixmap(self.face_image_path[0])
-                self.face_recognition_img.setPixmap(self.face_recognition_pixmap.scaled(QSize(350,350)))
+                self.face_recognition_img.setPixmap(self.face_recognition_pixmap.scaled(QSize(200,200)))
         
         except:
             self.qDialog('An error occurred while selecting a picture.')
