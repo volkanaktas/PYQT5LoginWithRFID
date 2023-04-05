@@ -26,11 +26,12 @@ face_names = []
 
 with sql3.connect('databases/users.db') as db:
     cursor = db.cursor()
-    
-with sql3.connect('databases/members.db') as db_members:
+
+#buraya bak.....
+with sql3.connect('databases/members.db',isolation_level=None,timeout=1) as db_members:
     cursor_members = db_members.cursor()
 
-with sql3.connect('databases/face_recognition.db') as db_face:
+with sql3.connect('databases/face_recognition.db',isolation_level=None,timeout=1) as db_face:
     cursor_face = db_face.cursor()
 
 class Main(QMainWindow):
@@ -258,7 +259,10 @@ class Main(QMainWindow):
         self.le_guest_username = QLineEdit()
         self.le_guest_password = QLineEdit()
         self.le_guest_password_confirm = QLineEdit()
-        self.le_face_name = QLineEdit()
+        #self.le_face_name = QLineEdit()
+        self.cb_face_name = QComboBox()
+        self.cb_face_name.setEditable(True)
+        #self.fillMembers()
         self.lb_admin_information_title = QLabel('Admin/Guest Information Update')
         self.lb_guest_information_title = QLabel('Guest Information Update')
         self.lb_face_recognition_title = QLabel('Add New Rfid Recognition')
@@ -280,6 +284,9 @@ class Main(QMainWindow):
         self.lb_face_image = QLabel('Member Face Image:')
         self.lb_member_rfid = QLabel('RFID Value:')
         self.le_member_rfid = QLineEdit()
+        self.lb_face_path = QLabel('Face Path:')
+        self.le_face_path = QLineEdit()
+        self.le_face_path.setEnabled(False)
         
         self.pb_admin_update = QPushButton('Admin/Guest Update')
         self.pb_member_Add = QPushButton('Add Member')
@@ -312,10 +319,13 @@ class Main(QMainWindow):
         self.pb_guest_update.clicked.connect(self.guestOptionsUpdate)
         self.pb_face_image.clicked.connect(self.selectFacePath)
         #self.pb_read_rfid.clicked.connect(self.addNewUserToFaceRecognition)    
-        self.pb_read_rfid.clicked.connect(lambda:self.readRfidManual(self.le_member_rfid))        
+        self.pb_read_rfid.clicked.connect(lambda:self.readRfidManual(self.le_member_rfid))       
+        self.cb_face_name.activated[str].connect(self.listMembers)             
+        self.pb_member_Add.clicked.connect(self.addMembers)
+        self.pb_member_Update.clicked.connect(self.updateMembers)
+        self.pb_member_Delete.clicked.connect(self.deleteMembers)
 
-        #Expanding Settings
-
+       
         #Alignment Settings
         self.h_box_admin_panel.setAlignment(Qt.AlignTop)
         self.v_box_admin_panel.setAlignment(Qt.AlignTop)
@@ -330,7 +340,7 @@ class Main(QMainWindow):
         self.le_admin_password.setAlignment(Qt.AlignTop)
         self.le_guest_username.setAlignment(Qt.AlignTop)
         self.le_guest_password.setAlignment(Qt.AlignTop)
-        self.le_face_name.setAlignment(Qt.AlignTop)
+        #self.le_face_name.setAlignment(Qt.AlignTop)
 
         self.lb_admin_username.setAlignment(Qt.AlignTop)
         self.lb_admin_password.setAlignment(Qt.AlignTop)
@@ -374,10 +384,11 @@ class Main(QMainWindow):
 
         #form_face_recognition_options
         self.form_face_recognition_options.setSpacing(5)
-        self.form_face_recognition_options.addRow(self.lb_face_name, self.le_face_name)
+        self.form_face_recognition_options.addRow(self.lb_face_name, self.cb_face_name)
         self.form_face_recognition_options.addRow(self.lb_member_telephone, self.le_member_telephone)
-        self.form_face_recognition_options.addRow(self.lb_member_mail, self.le_member_mail)
+        self.form_face_recognition_options.addRow(self.lb_member_mail, self.le_member_mail)        
         self.form_face_recognition_options.addRow(self.lb_face_image, self.pb_face_image)
+        self.form_face_recognition_options.addRow(self.lb_face_path, self.le_face_path)        
 
         #form_exit_admin_panel
         self.form_exit_admin_panel.addRow(self.pb_exit_admin_panel)
@@ -413,6 +424,9 @@ class Main(QMainWindow):
 
         #Widget Set Layout
         widget.setLayout(self.h_box_admin_panel)
+        
+        self.fillMembers()
+        self.listMembers(self.cb_face_name.currentText() )
         
         #return Widget
         return widget
@@ -519,7 +533,8 @@ class Main(QMainWindow):
         self.v_box_t_page2.addWidget(self.tableWidget)
 
         #Widget Set Layout
-        widget.setLayout(self.h_box_t_page)
+        widget.setLayout(self.h_box_t_page)        
+        
 
         #return Widget
         return widget
@@ -681,16 +696,17 @@ class Main(QMainWindow):
                         matching_items = self.tableWidget.findItems(rfid, Qt.MatchContains)
                         if matching_items:                        
                                 item = matching_items[0]  # Take the first.
-                                self.tableWidget.setCurrentItem(item)
-                                
+                                #self.tableWidget.setCurrentItem(item)
+                                #Alttaki satıra bak                                                                
                                 
                         else:                        
                                 self.tableWidget.insertRow(rowPosition)                                                                              
                                 self.tableWidget.setItem(rowPosition-1,0, QTableWidgetItem(datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
                                 self.tableWidget.setItem(rowPosition-1,1, QTableWidgetItem(name))
-                                self.tableWidget.setItem(rowPosition-1,2, QTableWidgetItem(rfid))                                                                
-                                self.tableWidget.resizeColumnsToContents()                                     
+                                self.tableWidget.setItem(rowPosition-1,2, QTableWidgetItem(rfid))                                              
+                                self.tableWidget.resizeColumnsToContents()                                                                     
                                 #self.tableWidget.move(0,0)
+                        self.tableWidget.selectRow(rowPosition-2)
                 else:
                         self.qDialog('Check Password Or Username')
                         
@@ -839,10 +855,97 @@ class Main(QMainWindow):
             
             else:
                 self.face_recognition_pixmap = QPixmap(self.face_image_path[0])
-                self.face_recognition_img.setPixmap(self.face_recognition_pixmap.scaled(QSize(200,200)))
+                self.face_recognition_img.setPixmap(self.face_recognition_pixmap.scaled(QSize(200,200)))              
+                self.le_face_path.setText(self.face_image_path[0])                
         
         except:
             self.qDialog('An error occurred while selecting a picture.')
+
+    
+    def fillMembers(self):
+        self.cb_face_name.clear()
+        cursor_members.execute('SELECT * FROM member')
+        for i in cursor_members.fetchall():
+            self.cb_face_name.addItem(i[2])            
+    
+    def listMembers(self,text):                                 
+            
+        search_member = ('SELECT * FROM member WHERE name= ?')
+        cursor_members.execute(search_member,[(text)])
+        result = cursor_members.fetchall()
+
+        if result:
+                for i in result:
+                        self.le_member_mail.setText(i[4])
+                        self.le_member_telephone.setText(i[3])  
+                        self.le_member_rfid.setText(str(i[1]))  
+                        self.le_face_path.setText(str(i[9]))                                              
+                        if str(i[9]) == "None":                                                                                                                               
+                                self.face_recognition_pixmap = QPixmap(str(os.getcwd()+"/images/profile.png"))
+                                self.face_recognition_img.setPixmap(self.face_recognition_pixmap.scaled(QSize(200,200)))   
+                        else:
+                                self.face_recognition_pixmap = QPixmap(str(i[9]))
+                                self.face_recognition_img.setPixmap(self.face_recognition_pixmap.scaled(QSize(200,200)))                                 
+                                                                                                                        
+                              
+        else:
+                self.qDialog('Check Member Name')
+                
+    def updateMembers(self):                            
+        membername = self.cb_face_name.currentText()      
+        rfid = self.le_member_rfid.text()
+        mail= self.le_member_mail.text()
+        telephone= self.le_member_telephone.text()   
+        imagepath=self.le_face_path.text()             
+
+        search_member = ('SELECT * FROM member WHERE name = ? AND rfidID = ?')
+        cursor_members.execute(search_member,[(membername),(rfid)])
+        result = cursor_members.fetchall()
+
+        if result:
+            
+            blanks = ['', ' ','  ']
+            if membername in blanks or rfid in blanks or mail in blanks or telephone in blanks:
+                self.qDialog('Please fill in the blanks...')
+            else:                               
+                cursor_members.execute('''
+                UPDATE member SET rfidID=?,name=?,phone=?,mail=?,facepath=?  WHERE rfidID=?;
+                ''',[(rfid),(membername),(telephone),(mail),(imagepath),(rfid)])                
+                db_members.commit()
+                self.qDialog('Member Information Updated Successfully...')
+                
+    def addMembers(self):
+        membername = self.cb_face_name.currentText()      
+        rfid = self.le_member_rfid.text()
+        mail= self.le_member_mail.text()
+        telephone= self.le_member_telephone.text()   
+        imagepath=self.le_face_path.text()          
+        cursor_members.execute('SELECT COUNT(*) FROM member')   
+        recordcount=cursor_members.fetchone()[0]+1                
+        
+        blanks = ['', ' ','  ']
+        if membername in blanks or rfid in blanks or mail in blanks or telephone in blanks:
+            self.qDialog('Please fill in the blanks...')
+        else:                              
+             cursor_members.execute('''
+             INSERT INTO member(id,rfidID,name,phone,mail,facepath) VALUES(?,?,?,?,?,?);
+             ''',[(recordcount),(rfid),(membername),(telephone),(mail),(imagepath)])  
+             cursor_members.execute('SELECT * FROM member')                     
+             db_members.commit()     
+             self.fillMembers()
+             self.qDialog('Member Information Added Successfully...')   
+             
+    def deleteMembers(self):          
+        rfid = self.le_member_rfid.text()        
+        cursor_members.execute('SELECT COUNT(*) FROM member')  
+        recordcount=cursor_members.fetchone()[0]+1                
+        
+        if recordcount>0:            
+            cursor_members.execute('DELETE FROM member WHERE rfidID = ?',[(rfid)])           
+            db_members.commit()     
+            self.fillMembers()
+            self.qDialog('Member Information Removed Successfully...')
+                
 
     def addNewUserToFaceRecognition(self):
         blanks = ['', ' ','  ']
@@ -851,7 +954,8 @@ class Main(QMainWindow):
             self.qDialog('Please Dont Forget To Choose A Image...')
             
         else:
-            face_name = self.le_face_name.text()
+            face_name = self.cb_face_name.text()
+            #face_name = self.le_face_name.text()
             face_path = f'face_images/{face_name}.jpg'
 
             if self.rb_role_admin.isChecked() == False and self.rb_role_guest.isChecked() == False:
